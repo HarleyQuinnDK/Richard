@@ -2,59 +2,153 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Operace Velký bratr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Operace: Velký bratr</title>
   <style>
-    body { background: black; color: #0f0; font-family: monospace; padding: 20px; }
-    .line { margin: 0; }
-    .ok { color: #0f0; }
-    .warn { color: #ff0; }
-    .err { color: #f00; }
-    .final { color: #0f0; font-weight: bold; font-size: 20px; margin-top: 20px; }
-    @keyframes blink { 50% { opacity: 0; } }
-    .blink { animation: blink 1s step-end infinite; }
+    :root{
+      --bg:#050505; --txt:#b6ffb6; --muted:#78d878; --accent:#21ff8a; --warn:#ffd772;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:#000;color:var(--txt);font:16px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace}
+    .wrap{position:relative;height:100%;overflow:hidden}
+    .scan{position:absolute;inset:0;padding:18px}
+    .crt:before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.03),rgba(0,0,0,0) 2px) 0 0/100% 3px, radial-gradient(ellipse at center, rgba(255,255,255,.04), transparent 60%);pointer-events:none;mix-blend-mode:overlay}
+    .header{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+    .led{width:8px;height:8px;border-radius:50%;background:#062;box-shadow:0 0 12px #2f6}
+    .title{letter-spacing:.1em;opacity:.8}
+    .console{height:calc(100% - 120px);border:1px solid rgba(60,255,140,.25);border-radius:10px;padding:12px;overflow:auto;background:#030b04}
+    .line{white-space:pre-wrap}
+    .dim{opacity:.6}
+    .ok{color:var(--accent)}
+    .warn{color:var(--warn)}
+    .bar{margin-top:10px;height:12px;border:1px solid rgba(60,255,140,.35);border-radius:999px;overflow:hidden;background:#021}
+    .bar>div{height:100%;width:0;background:linear-gradient(90deg,#12ff5f,#00e0ff);box-shadow:inset 0 0 18px rgba(0,255,150,.5);transition:width .18s ease}
+    .footer{position:absolute;left:18px;right:18px;bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .hint{opacity:.6}
+    .blink{animation:blink 1s step-end infinite}
+    @keyframes blink{50%{opacity:0}}
+    .big{font-size:14px;margin-top:10px}
+
+    /* fullscreen helper */
+    .overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.85);color:#aaffbb}
+    .overlay.hide{display:none}
+    .btn{padding:10px 14px;border:1px solid rgba(60,255,140,.4);border-radius:10px;background:#071;cursor:pointer}
+    .btn:hover{filter:brightness(1.2)}
   </style>
 </head>
 <body>
-<pre id="log"></pre>
+<div class="wrap crt">
+  <div id="overlay" class="overlay">
+    <div style="text-align:center">
+      <div style="font-size:18px;letter-spacing:.08em;margin-bottom:12px">OPERACE SPUŠTĚNA</div>
+      <div class="dim" style="margin-bottom:16px">Tip: stiskni <strong>F11</strong> (celá obrazovka) a klikni na Start.</div>
+      <button id="startBtn" class="btn">Start skenování</button>
+    </div>
+  </div>
+  <div class="scan">
+    <div class="header"><span class="led"></span><div class="title">/ops/scan – Monitorovací protokol: <strong>Richard</strong></div></div>
+    <div id="log" class="console"></div>
+    <div class="bar"><div id="prog"></div></div>
+    <div class="footer">
+      <div class="hint">STATUS: <span id="status">IDLE</span></div>
+      <div class="hint">Velký bratr mód <span class="blink">•</span></div>
+    </div>
+  </div>
+</div>
 <script>
   const logEl = document.getElementById('log');
-  const steps = [
-    'Zahajuji monitorovací protokol: Richard',
-    'Navazuji spojení s cílem… OK',
-    'Skenuji složku /tajne_fotky… HOTOVO',
-    'Analyzuji zprávy WhatsApp… HOTOVO',
-    'Přístup k mikrofonu… POVOLEN',
-    'Záznam posledních 5 hovorů… HOTOVO',
-    'Dekóduji seznam hesel… HOTOVO',
-    'Kontrola webkamery… ONLINE',
-    'Sledování polohy… AKTIVNÍ'
-  ];
+  const progEl = document.getElementById('prog');
+  const statusEl = document.getElementById('status');
+  const overlay = document.getElementById('overlay');
+  document.getElementById('startBtn').addEventListener('click', run);
 
-  let i = 0;
-  function nextLine() {
-    if (i < steps.length) {
-      logEl.innerHTML += `> ${steps[i]}\n`;
-      i++;
-      setTimeout(nextLine, 700);
-    } else {
-      showFinal();
+  const ips = ['10.0.0.2','172.16.0.14','192.168.1.77','54.21.11.203','8.8.8.8','203.0.113.42'];
+  const ports = [22,80,443,445,993,3389,5060,8080,8443,1900];
+  const folders = ['/tajne_fotky','/zpravy','/hesla','/audio','/dokumenty','/download'];
+  const services = ['ssh','http','https','smb','imap','rdp','sip','proxy'];
+  const users = ['richard','admin','guest','backup'];
+
+  function add(text, cls=''){
+    const d=document.createElement('div');
+    d.className='line '+cls; d.textContent=text; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
+  }
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+
+  async function movieScan(){
+    statusEl.textContent='SCANNING';
+    add('> Kalibrace senzorů… OK','ok'); await sleep(350);
+    add('> Navazuji šifrovaný kanál… OK','ok'); await sleep(350);
+    add('> Synchronizuji čas… '+new Date().toLocaleString(),'dim'); await sleep(300);
+
+    // síťové skeny
+    for(let i=0;i<18;i++){
+      const ip=ips[Math.floor(Math.random()*ips.length)];
+      const p=ports[Math.floor(Math.random()*ports.length)];
+      const svc=services[Math.floor(Math.random()*services.length)];
+      add(`scan ${ip}:${p} (${svc}) … ${Math.random()>.08?'OPEN':'filtered'}`,(Math.random()>.1?'ok':'dim'));
+      bump(2+Math.random()*2); await sleep(90+Math.random()*120);
+    }
+
+    // souborový průzkum
+    add('> Mapuji souborový systém cíle…','dim'); await sleep(300);
+    for(let i=0;i<10;i++){
+      const f=folders[Math.floor(Math.random()*folders.length)];
+      add(`  • Skenuji složku ${f}/… nalezeno ${10+Math.floor(Math.random()*400)} položek`,'ok');
+      bump(2+Math.random()*3); await sleep(120+Math.random()*160);
+    }
+
+    // hesla / přihlašování
+    add('> Agreguji přihlašovací tokeny…','dim'); await sleep(250);
+    for(let i=0;i<6;i++){
+      const u=users[Math.floor(Math.random()*users.length)];
+      const score=Math.floor(40+Math.random()*60);
+      add(`  • ${u}@${ips[2]}  —  crack score ${score}% ${(score>70)?'OK':'retry'}`,(score>70)?'ok':'warn');
+      bump(3+Math.random()*4); await sleep(140+Math.random()*180);
+    }
+
+    // média
+    add('> Indexuji média…','dim'); await sleep(200);
+    for(let i=0;i<8;i++){
+      add(`  • hash:${Math.random().toString(16).slice(2,10)}  type:${Math.random()>.5?'jpg':'mp4'}  size:${(100+Math.floor(Math.random()*900))}KB`,'ok');
+      bump(2+Math.random()*3); await sleep(100+Math.random()*140);
     }
   }
 
-  function showFinal() {
-    logEl.innerHTML += '\n';
-    logEl.innerHTML += '███████╗███████╗██╗     ███████╗██╗   ██╗\n';
-    logEl.innerHTML += '██╔════╝██╔════╝██║     ██╔════╝╚██╗ ██╔╝\n';
-    logEl.innerHTML += '███████╗█████╗  ██║     █████╗   ╚████╔╝ \n';
-    logEl.innerHTML += '╚════██║██╔══╝  ██║     ██╔══╝    ╚██╔╝  \n';
-    logEl.innerHTML += '███████║███████╗███████╗███████╗   ██║   \n';
-    logEl.innerHTML += '╚══════╝╚══════╝╚══════╝╚══════╝   ╚═╝   \n\n';
-    logEl.innerHTML += '        VELKÝ BRATR TĚ VIDÍ 😈\n';
-    logEl.innerHTML += '\n(Pozn.: Tohle je jen neškodný vtípek… nebo ne? 😏)\n';
+  function bump(x){
+    const cur = parseFloat(progEl.style.width||'0');
+    const next = Math.min(99, cur + x);
+    progEl.style.width = next+'%';
   }
 
-  nextLine();
+  async function finale(){
+    statusEl.textContent='COMPLETE';
+    progEl.style.width='100%';
+    await sleep(300);
+    add('', '');
+    const banner = [
+      '██╗   ██╗███████╗██╗     ██╗  ██╗██╗   ██╗',
+      '██║   ██║██╔════╝██║     ██║ ██╔╝██║   ██║',
+      '██║   ██║█████╗  ██║     █████╔╝ ██║   ██║',
+      '╚██╗ ██╔╝██╔══╝  ██║     ██╔═██╗ ██║   ██║',
+      ' ╚████╔╝ ███████╗███████╗██║  ██╗╚██████╔╝',
+      '  ╚═══╝  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ',
+      '             VELKÝ BRATR TĚ VIDÍ          '
+    ];
+    banner.forEach(l=>add(l,'ok'));
+    add('', '');
+    add('(Pozn.: Tohle je jen neškodný vtípek… nebo ne? 😏)','dim');
+  }
+
+  async function run(){
+    overlay.classList.add('hide');
+    logEl.innerHTML=''; progEl.style.width='0%';
+    await movieScan();
+    await finale();
+  }
+
+  // auto start on direct open (no overlay when hash=start)
+  if(location.hash==='#start'){ overlay.classList.add('hide'); run(); }
 </script>
 </body>
 </html>
