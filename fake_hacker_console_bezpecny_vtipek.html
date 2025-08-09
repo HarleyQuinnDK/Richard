@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operace Velký bratr</title>
+  <style>
+    body { background: black; color: #0f0; font-family: monospace; padding: 20px; }
+    .line { margin: 0; }
+    .ok { color: #0f0; }
+    .warn { color: #ff0; }
+    .err { color: #f00; }
+    .final { color: #0f0; font-weight: bold; font-size: 20px; margin-top: 20px; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .blink { animation: blink 1s step-end infinite; }
+  </style>
+</head>
+<body>
+<pre id="log"></pre>
+<script>
+  const logEl = document.getElementById('log');
+  const steps = [
+    'Zahajuji monitorovací protokol: Richard',
+    'Navazuji spojení s cílem… OK',
+    'Skenuji složku /tajne_fotky… HOTOVO',
+    'Analyzuji zprávy WhatsApp… HOTOVO',
+    'Přístup k mikrofonu… POVOLEN',
+    'Záznam posledních 5 hovorů… HOTOVO',
+    'Dekóduji seznam hesel… HOTOVO',
+    'Kontrola webkamery… ONLINE',
+    'Sledování polohy… AKTIVNÍ'
+  ];
+
+  let i = 0;
+  function nextLine() {
+    if (i < steps.length) {
+      logEl.innerHTML += `> ${steps[i]}\n`;
+      i++;
+      setTimeout(nextLine, 700);
+    } else {
+      showFinal();
+    }
+  }
+
+  function showFinal() {
+    logEl.innerHTML += '\n';
+    logEl.innerHTML += '███████╗███████╗██╗     ███████╗██╗   ██╗\n';
+    logEl.innerHTML += '██╔════╝██╔════╝██║     ██╔════╝╚██╗ ██╔╝\n';
+    logEl.innerHTML += '███████╗█████╗  ██║     █████╗   ╚████╔╝ \n';
+    logEl.innerHTML += '╚════██║██╔══╝  ██║     ██╔══╝    ╚██╔╝  \n';
+    logEl.innerHTML += '███████║███████╗███████╗███████╗   ██║   \n';
+    logEl.innerHTML += '╚══════╝╚══════╝╚══════╝╚══════╝   ╚═╝   \n\n';
+    logEl.innerHTML += '        VELKÝ BRATR TĚ VIDÍ 😈\n';
+    logEl.innerHTML += '\n(Pozn.: Tohle je jen neškodný vtípek… nebo ne? 😏)\n';
+  }
+
+  nextLine();
+</script>
+</body>
+</html>
